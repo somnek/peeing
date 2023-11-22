@@ -9,21 +9,23 @@ func isPacketRecv(msg *probing.Statistics) bool {
 	return msg.PacketsRecv == 1
 }
 
-func ping() tea.Msg {
-	// create a new pinger
-	pinger, err := probing.NewPinger("google.ca")
-	if err != nil {
-		panic(err)
-	}
+func ping(url string) tea.Cmd {
+	return func() tea.Msg {
+		// create a new pinger
+		pinger, err := probing.NewPinger(url)
+		if err != nil {
+			panic(err)
+		}
 
-	pinger.Count = 1
-	pinger.Timeout = timeLimit
+		pinger.Count = 1
+		pinger.Timeout = timeLimit
 
-	stats, err := getStats(pinger)
-	if err != nil {
-		return errMsg{err}
+		stats, err := getStats(pinger)
+		if err != nil {
+			return errMsg{err}
+		}
+		return pingMsg(stats)
 	}
-	return pingMsg(stats)
 
 }
 
