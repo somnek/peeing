@@ -25,33 +25,6 @@ func initialModel() model {
 	return model{}
 }
 
-func ping() tea.Msg {
-	// create a new pinger
-	pinger, err := probing.NewPinger("google.ca")
-	if err != nil {
-		panic(err)
-	}
-
-	pinger.Count = 1
-	pinger.Timeout = timeLimit
-
-	stats, err := getStats(pinger)
-	if err != nil {
-		return errMsg{err}
-	}
-	return pingMsg(stats)
-
-}
-
-func getStats(pinger *probing.Pinger) (*probing.Statistics, error) {
-	err := pinger.Run()
-	if err != nil {
-		return nil, err
-	}
-	return pinger.Statistics(), err
-
-}
-
 func (m model) Init() tea.Cmd {
 	return nil
 }
@@ -59,20 +32,23 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case pingMsg:
-		m.log = fmt.Sprintf("🐐%v - %d", msg.Rtts, len(msg.Rtts))
+		if isPacketRecv(msg) {
+			m.log = fmt.Sprintf("🐐%v", msg.Rtts)
+		} else {
+			m.log = "🐇 Failed to ping"
+		}
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c":
+		case "ctrl+c", "q", "esc":
 			return m, tea.Quit
 		case " ", "enter":
-			m.log += "pinging..."
+			m.log = "🌀 pinging..."
 			return m, ping
 		}
 	case errMsg:
-		m.err = msg.err
-		m.log = "⛔"
-		return m, ping
+		fmt.Printf("⛔ : %v", msg.err)
+		return m, tea.Quit
 	}
 	return m, nil
 }
