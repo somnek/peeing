@@ -23,10 +23,16 @@ type model struct {
 	pinger      *probing.Pinger
 	inputs      []textinput.Model
 	log         string
-	isSubmmited bool
+	isSubmitted bool
+	isPinging   bool
+	rttList     []time.Duration
 }
 
-type pingMsg *probing.Statistics
+// type pingMsg *probing.Statistics
+type pingMsg struct {
+	stats *probing.Statistics
+	dur   time.Duration
+}
 type errMsg struct{ err error }
 
 func initialModel() model {
@@ -37,7 +43,7 @@ func initialModel() model {
 	var t textinput.Model
 	t = textinput.New()
 	t.CharLimit = 32
-	t.Placeholder = "Enter a URL"
+	t.Placeholder = "Enter a URL to ping..."
 	t.Focus()
 
 	m.inputs[0] = t
@@ -52,12 +58,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case pingMsg:
-		if isPacketRecv(msg) {
-			m.log = fmt.Sprintf("🐐%v", msg.Rtts)
+		dur := msg.dur
+		url := m.inputs[0].Value()
+		stats := msg.stats
+
+		if isPacketRecv(stats) {
+			// display Rtts
+			m.log = fmt.Sprintf("🐐%v", stats.Rtts)
+			m.rttList = append(m.rttList, dur)
 		} else {
-			m.log = "🐇 Failed"
+			m.log = "🐇 Failed, retrying..."
+			m.rttList = append(m.rttList, -1*time.Millisecond)
 		}
-		return m, nil
+
+		// should wait at least 1 second before ping again
+		spareTime := 1*time.Second - dur
+		time.Sleep(spareTime)
+
+		m.log += "🌀 isPinging..."
+		return m, ping(url)
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -92,6 +111,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case " ", "enter":
+			if m.isPinging {
+				return m, nil
+			}
+
 			url := m.inputs[0].Value()
 
 			// validate input
@@ -101,10 +124,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			// unfocused & submit
-			m.log = "🌀 pinging..."
+			// m.log += "🌀 isPinging..."
 			m.err = nil
 			m.inputs[0].Blur()
-			m.isSubmmited = true
+			m.isSubmitted = true
+			m.isPinging = true
 
 			return m, ping(url)
 		}
@@ -131,11 +155,11 @@ func (m model) updateInputs(msg tea.Msg) tea.Cmd {
 func (m model) View() string {
 	var b strings.Builder
 
-	b.WriteString(helpStyle.Render("hit space to ping 📡"))
+	b.WriteString(helpStyle.Render("Peeing! 📡"))
 	b.WriteRune('\n')
 	b.WriteString(m.log)
 
-	if m.isSubmmited == false {
+	if m.isSubmitted == false {
 		for i := range m.inputs {
 			b.WriteString(m.inputs[i].View())
 		}
@@ -146,6 +170,13 @@ func (m model) View() string {
 	if m.err != nil {
 		b.WriteString(fmt.Sprintf("🚫 error: %v", m.err))
 	}
+
+	// bar chart
+	for _, rtt := range m.rttList {
+		block := convertToBlockUnit(rtt)
+		b.WriteRune(block)
+	}
+
 	return b.String()
 }
 
