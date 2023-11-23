@@ -62,8 +62,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 
-		case "ctrl+c", "q", "esc":
+		case "ctrl+c", "esc":
 			return m, tea.Quit
+
+		case "q":
+			if !m.inputs[0].Focused() {
+				return m, tea.Quit
+			}
+
+		case "ctrl+r":
+			m.inputs[0].Reset()
+			m.inputs[0].Focus()
+			return m, nil
+
+		case "r":
+			if !m.inputs[0].Focused() {
+				m.inputs[0].Reset()
+				m.inputs[0].Focus()
+			}
 
 		case " ", "enter":
 			m.log = "🌀 pinging..."
