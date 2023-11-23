@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 	probing "github.com/prometheus-community/pro-bing"
 )
@@ -36,4 +38,10 @@ func getStats(pinger *probing.Pinger) (*probing.Statistics, error) {
 	}
 	return pinger.Statistics(), err
 
+}
+
+// this is just a basic input validate
+// for url validation, let probing.NewPinger do it
+func isValidInput(u string) bool {
+	return strings.Contains(u, ".") && !strings.Contains(u, " ")
 }

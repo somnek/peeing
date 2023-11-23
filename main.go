@@ -62,28 +62,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 
-		case "ctrl+c", "esc":
+		case "esc":
+			if !m.inputs[0].Focused() {
+				// quit if not focused
+				return m, tea.Quit
+			} else {
+				// reset input if focused
+				if m.inputs[0].Value() != "" {
+					m.inputs[0].Reset()
+					m.inputs[0].Focus()
+					return m, nil
+				}
+			}
+			return m, tea.Quit
+
+		case "ctrl+c":
 			return m, tea.Quit
 
 		case "q":
+			// allowing 'q' to be used as input
 			if !m.inputs[0].Focused() {
 				return m, tea.Quit
 			}
 
 		case "ctrl+r":
+			// reset input
 			m.inputs[0].Reset()
 			m.inputs[0].Focus()
 			return m, nil
 
-		case "r":
-			if !m.inputs[0].Focused() {
-				m.inputs[0].Reset()
-				m.inputs[0].Focus()
-			}
-
 		case " ", "enter":
-			m.log = "🌀 pinging..."
 			url := m.inputs[0].Value()
+
+			// validate input
+			if !isValidInput(url) {
+				m.inputs[0].Reset()
+				m.err = fmt.Errorf("invalid input")
+				return m, nil
+			}
+			// unfocused & submit
+			m.log = "🌀 pinging..."
+			m.err = nil
 			m.inputs[0].Blur()
 			m.isSubmmited = true
 
