@@ -10,7 +10,9 @@ func TestIsisValidInput(t *testing.T) {
 	}{
 		{"with space", "google .ca", false},
 		{"without space", "google.ca", true},
-		{"empty", "", false},
+		{"without dot", "googleca", false},
+		{"empty input", "", false},
+		{"just space", " ", false},
 	}
 
 	for _, tt := range tests {
