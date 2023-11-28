@@ -12,7 +12,10 @@ import (
 	probing "github.com/prometheus-community/pro-bing"
 )
 
-const timeLimit = 1 * time.Second
+const (
+	timeLimit = 1 * time.Second
+	maxCol    = 25
+)
 
 var (
 	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("120"))
@@ -57,6 +60,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	// receive result from ping()
 	case pingMsg:
 		dur := msg.dur
 		url := m.inputs[0].Value()
@@ -71,13 +75,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rttList = append(m.rttList, -1*time.Millisecond)
 		}
 
+		// slide the bar chart if exceed maxCol
+		if len(m.rttList) > maxCol {
+			m.rttList = m.rttList[1:]
+		}
+
 		// should wait at least 1 second before ping again
 		spareTime := 1*time.Second - dur
 		time.Sleep(spareTime)
 
-		m.log += "🌀 isPinging..."
+		m.log += "🌀 pinging..."
 		return m, ping(url)
 
+	// handle shortcut keys (not character input)
 	case tea.KeyMsg:
 		switch msg.String() {
 
@@ -124,7 +134,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			// unfocused & submit
-			// m.log += "🌀 isPinging..."
+			m.log += "🌀 pinging..."
 			m.err = nil
 			m.inputs[0].Blur()
 			m.isSubmitted = true
@@ -159,7 +169,7 @@ func (m model) View() string {
 	b.WriteRune('\n')
 	b.WriteString(m.log)
 
-	if m.isSubmitted == false {
+	if !m.isSubmitted {
 		for i := range m.inputs {
 			b.WriteString(m.inputs[i].View())
 		}
