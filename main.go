@@ -13,12 +13,15 @@ import (
 )
 
 const (
-	timeLimit = 1 * time.Second
-	maxCol    = 25
+	pingInterval = 500 * time.Millisecond
+	timeLimit    = 1 * time.Second
+	maxCol       = 25
+	failedRttVal = -1 * time.Millisecond
 )
 
 var (
-	helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("120"))
+	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("120"))
+	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("120")).Bold(true)
 )
 
 type model struct {
@@ -65,14 +68,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		dur := msg.dur
 		url := m.inputs[0].Value()
 		stats := msg.stats
+		rtt := stats.Rtts[0]
 
 		if isPacketRecv(stats) {
 			// display Rtts
-			m.log = fmt.Sprintf("🐐%v", stats.Rtts)
-			m.rttList = append(m.rttList, dur)
+			m.log = fmt.Sprintf("🐐%v", rtt)
+			m.rttList = append(m.rttList, rtt)
 		} else {
 			m.log = "🐇 Failed, retrying..."
-			m.rttList = append(m.rttList, -1*time.Millisecond)
+			m.rttList = append(m.rttList, failedRttVal)
 		}
 
 		// slide the bar chart if exceed maxCol
@@ -81,10 +85,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// should wait at least 1 second before ping again
-		spareTime := 1*time.Second - dur
+		spareTime := pingInterval - dur
 		time.Sleep(spareTime)
 
-		m.log += "🌀 pinging..."
+		m.log += "  🌀 pinging..."
 		return m, ping(url)
 
 	// handle shortcut keys (not character input)
@@ -144,8 +148,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case errMsg:
-		fmt.Printf("⛔ : %v", msg.err)
-		return m, tea.Quit
+		m.err = msg.err
+		m.inputs[0].Reset()
+		m.inputs[0].Focus()
+		m.isSubmitted = false
+		m.log = ""
+		m.isPinging = false
+		return m, nil
 	}
 
 	// handle character input & blinking
@@ -165,7 +174,7 @@ func (m model) updateInputs(msg tea.Msg) tea.Cmd {
 func (m model) View() string {
 	var b strings.Builder
 
-	b.WriteString(helpStyle.Render("Peeing! 📡"))
+	b.WriteString(titleStyle.Render("Peeing! 📡"))
 	b.WriteRune('\n')
 	b.WriteString(m.log)
 
