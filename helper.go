@@ -30,7 +30,7 @@ func ping(url string) tea.Cmd {
 		}
 
 		// ping options
-		pinger.Timeout = timeLimit
+		pinger.Timeout = TimeLimit
 		pinger.Count = 1
 
 		stats, err := getStats(pinger)
@@ -69,14 +69,14 @@ func convertToBlockUnit(dur time.Duration) rune {
 	}
 
 	unitMap := []time.Duration{
-		time.Millisecond * 50,
-		time.Millisecond * 100,
-		time.Millisecond * 150,
-		time.Millisecond * 200,
-		time.Millisecond * 250,
-		time.Millisecond * 300,
-		time.Millisecond * 350,
-		time.Millisecond * 400,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		150 * time.Millisecond,
+		200 * time.Millisecond,
+		250 * time.Millisecond,
+		300 * time.Millisecond,
+		350 * time.Millisecond,
+		400 * time.Millisecond,
 	}
 
 	for i, v := range unitMap {
@@ -84,6 +84,7 @@ func convertToBlockUnit(dur time.Duration) rune {
 			return BARS[i]
 		}
 	}
+
 	// if the duration is greater than 400ms, we return the last block symbol
 	return BARS[7]
 }

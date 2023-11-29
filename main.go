@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	pingInterval = 500 * time.Millisecond
-	timeLimit    = 1 * time.Second
-	maxCol       = 25
-	failedRttVal = -1 * time.Millisecond
+	PingInterval = 500 * time.Millisecond
+	TimeLimit    = 1 * time.Second
+	MaxCol       = 25
+	FailedRttVal = -1 * time.Millisecond
 )
 
 var (
@@ -76,16 +76,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rttList = append(m.rttList, rtt)
 		} else {
 			m.log = "🐇 Failed, retrying..."
-			m.rttList = append(m.rttList, failedRttVal)
-		}
-
-		// slide the bar chart if exceed maxCol
-		if len(m.rttList) > maxCol {
-			m.rttList = m.rttList[1:]
+			m.rttList = append(m.rttList, FailedRttVal)
 		}
 
 		// should wait at least 1 second before ping again
-		spareTime := pingInterval - dur
+		spareTime := PingInterval - dur
 		time.Sleep(spareTime)
 
 		m.log += "  🌀 pinging..."
@@ -191,7 +186,13 @@ func (m model) View() string {
 	}
 
 	// bar chart
-	for _, rtt := range m.rttList {
+	// slide the bar chart if exceed maxCol
+	relevantRtts := m.rttList
+	if len(m.rttList) > MaxCol {
+		relevantRtts = m.rttList[len(m.rttList)-MaxCol:]
+	}
+
+	for _, rtt := range relevantRtts {
 		block := convertToBlockUnit(rtt)
 		b.WriteRune(block)
 	}
