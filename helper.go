@@ -8,6 +8,12 @@ import (
 	probing "github.com/prometheus-community/pro-bing"
 )
 
+func insertHistory(history []string, t time.Time, rtt time.Duration) []string {
+	history = append(history, rtt.String())
+	history = history[1:]
+	return history
+}
+
 // check if the ping request is successful
 func isPacketRecv(msg *probing.Statistics) bool {
 	return msg.PacketsRecv == 1
@@ -42,6 +48,7 @@ func ping(url string) tea.Cmd {
 		return pingMsg{
 			stats: stats,
 			dur:   duration,
+			start: start,
 		}
 	}
 }

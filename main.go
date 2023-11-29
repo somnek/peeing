@@ -7,41 +7,51 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	probing "github.com/prometheus-community/pro-bing"
 )
 
 const (
-	PingInterval = 500 * time.Millisecond
-	TimeLimit    = 1 * time.Second
-	MaxCol       = 25
-	FailedRttVal = -1 * time.Millisecond
+	PingInterval  = 500 * time.Millisecond
+	TimeLimit     = 1 * time.Second
+	Width         = 25
+	FailedRttVal  = -1 * time.Millisecond
+	HistoryHeight = 5
 )
 
 var (
-	helpStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("120"))
-	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("120")).Bold(true)
+	helpStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
+	titleStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("120")).Bold(true)
+	historyBorderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Border(lipgloss.RoundedBorder())
 )
 
 type model struct {
 	err         error
-	pinger      *probing.Pinger
 	inputs      []textinput.Model
 	log         string
 	isSubmitted bool
 	isPinging   bool
 	rttList     []time.Duration
+	history     []string // windowed rttList
+	help        string
+}
+
+type history struct {
+	viewport viewport.Model
 }
 
 // type pingMsg *probing.Statistics
 type pingMsg struct {
 	stats *probing.Statistics
 	dur   time.Duration
+	start time.Time
 }
 type errMsg struct{ err error }
 
 func initialModel() model {
+	// inputs
 	m := model{
 		inputs: make([]textinput.Model, 1),
 	}
@@ -52,6 +62,11 @@ func initialModel() model {
 	t.Placeholder = "Enter a URL to ping..."
 	t.Focus()
 
+	// history
+	m.history = make([]string, 5)
+
+	// help
+	m.help = "esc: quit • enter: submit"
 	m.inputs[0] = t
 	return m
 }
@@ -68,15 +83,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		dur := msg.dur
 		url := m.inputs[0].Value()
 		stats := msg.stats
-		rtt := stats.Rtts[0]
 
 		if isPacketRecv(stats) {
+			rtt := stats.Rtts[0]
 			// display Rtts
 			m.log = fmt.Sprintf("🐐%v", rtt)
 			m.rttList = append(m.rttList, rtt)
+			m.history = insertHistory(m.history, msg.start, rtt)
 		} else {
 			m.log = "🐇 Failed, retrying..."
 			m.rttList = append(m.rttList, FailedRttVal)
+			m.history = insertHistory(m.history, msg.start, FailedRttVal)
 		}
 
 		// should wait at least 1 second before ping again
@@ -119,7 +136,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputs[0].Focus()
 			return m, nil
 
-		case " ", "enter":
+		case "enter":
 			if m.isPinging {
 				return m, nil
 			}
@@ -186,16 +203,31 @@ func (m model) View() string {
 	}
 
 	// bar chart
-	// slide the bar chart if exceed maxCol
+	// slide the bar chart if exceed Width
+
 	relevantRtts := m.rttList
-	if len(m.rttList) > MaxCol {
-		relevantRtts = m.rttList[len(m.rttList)-MaxCol:]
+	if len(m.rttList) > Width {
+		relevantRtts = m.rttList[len(m.rttList)-Width:]
 	}
 
 	for _, rtt := range relevantRtts {
 		block := convertToBlockUnit(rtt)
 		b.WriteRune(block)
 	}
+
+	b.WriteRune('\n')
+
+	// history
+	for _, h := range m.history {
+		if h != "" {
+			b.WriteString(fmt.Sprintf("	• %s\n", h))
+		} else {
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteRune('\n')
+	b.WriteString(helpStyle.Render(m.help))
 
 	return b.String()
 }
