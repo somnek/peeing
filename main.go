@@ -24,7 +24,9 @@ const (
 var (
 	helpStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
 	titleStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("120")).Bold(true)
-	historyBorderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("243")).Border(lipgloss.RoundedBorder())
+	historyBorderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("243")).
+				Border(lipgloss.RoundedBorder())
 )
 
 type model struct {
@@ -80,6 +82,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// receive result from ping()
 	case pingMsg:
+		if !m.isPinging {
+			return m, nil
+		}
 		dur := msg.dur
 		url := m.inputs[0].Value()
 		stats := msg.stats
@@ -116,6 +121,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.inputs[0].Value() != "" {
 					m.inputs[0].Reset()
 					m.inputs[0].Focus()
+					m.isSubmitted = false
+					m.log = ""
 					return m, nil
 				}
 			}
@@ -134,6 +141,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// reset input
 			m.inputs[0].Reset()
 			m.inputs[0].Focus()
+			m.isSubmitted, m.isPinging = false, false
+			m.rttList, m.history = nil, nil
+			m.log = ""
+			m.help = "esc: quit • enter: submit"
 			return m, nil
 
 		case "enter":
@@ -155,6 +166,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputs[0].Blur()
 			m.isSubmitted = true
 			m.isPinging = true
+			m.help = "esc: quit • ctrl+c: quit"
 
 			return m, ping(url)
 		}
@@ -215,7 +227,7 @@ func (m model) View() string {
 		b.WriteRune(block)
 	}
 
-	b.WriteRune('\n')
+	b.WriteString("\n\n")
 
 	// history
 	for _, h := range m.history {
