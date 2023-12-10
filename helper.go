@@ -22,9 +22,9 @@ func isPacketRecv(msg *probing.Statistics) bool {
 // ping() sends a ping request to the specified URL and returns a tea.Cmd.
 // The ping request measures the round-trip time (RTT) and collects statistics about the network connection.
 // url: parameter specifies the target URL to ping.
-// The function returns a tea.Cmd, which is a command that can be executed by a tea.Program.
-// The tea.Cmd function is executed asynchronously and returns a tea.Msg when completed.
-// The tea.Msg contains the ping statistics and the duration of the ping request.
+// - returns a tea.Cmd, which is a command that can be executed by a tea.Program.
+// - tea.Cmd function is executed asynchronously and returns a tea.Msg when completed.
+// - tea.Msg contains the ping statistics and the duration of the ping request.
 func ping(url string) tea.Cmd {
 	return func() tea.Msg {
 		start := time.Now()
@@ -45,10 +45,14 @@ func ping(url string) tea.Cmd {
 		}
 
 		duration := time.Since(start)
-		return pingMsg{
-			stats: stats,
+		t := timing{
 			dur:   duration,
 			start: start,
+			end:   time.Now(),
+		}
+		return pingMsg{
+			stats:  stats,
+			timing: t,
 		}
 	}
 }

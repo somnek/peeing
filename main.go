@@ -7,10 +7,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	probing "github.com/prometheus-community/pro-bing"
 )
 
 const (
@@ -29,29 +27,6 @@ var (
 				Border(lipgloss.RoundedBorder())
 )
 
-type model struct {
-	err         error
-	inputs      []textinput.Model
-	log         string
-	isSubmitted bool
-	isPinging   bool
-	rttList     []time.Duration
-	history     []string // windowed rttList
-	help        string
-}
-
-type history struct {
-	viewport viewport.Model
-}
-
-// type pingMsg *probing.Statistics
-type pingMsg struct {
-	stats *probing.Statistics
-	dur   time.Duration
-	start time.Time
-}
-type errMsg struct{ err error }
-
 func initialModel() model {
 	// inputs
 	m := model{
@@ -61,11 +36,11 @@ func initialModel() model {
 	var t textinput.Model
 	t = textinput.New()
 	t.CharLimit = 32
-	t.Placeholder = "Enter a URL to ping..."
+	t.Placeholder = "Enter a URL to ping"
 	t.Focus()
 
 	// history
-	m.history = make([]string, 5)
+	m.history = make([]record, HistoryHeight)
 
 	// help
 	m.help = "esc: quit • enter: submit"
@@ -94,11 +69,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// display Rtts
 			m.log = fmt.Sprintf("🐐%v", rtt)
 			m.rttList = append(m.rttList, rtt)
-			m.history = insertHistory(m.history, msg.start, rtt)
+			rc := record{timestamp: msg.end, rtt: rtt}
+			m.history = append(m.history, rc)
 		} else {
 			m.log = "🐇 Failed, retrying..."
 			m.rttList = append(m.rttList, FailedRttVal)
-			m.history = insertHistory(m.history, msg.start, FailedRttVal)
+			rc := record{timestamp: msg.end, rtt: FailedRttVal}
+			m.history = append(m.history, rc)
 		}
 
 		// should wait at least 1 second before ping again
@@ -230,9 +207,14 @@ func (m model) View() string {
 	b.WriteString("\n\n")
 
 	// history
-	for _, h := range m.history {
-		if h != "" {
-			b.WriteString(fmt.Sprintf("	• %s\n", h))
+	// this is quite expensive, but it's fine for now
+	for i := 0; i < len(m.history); i++ {
+		offset := len(m.history) - HistoryHeight
+		if i < offset {
+			continue
+		}
+		if m.history[i] != (record{}) {
+			b.WriteString(fmt.Sprintf("	• %s\n", m.history[i].rtt))
 		} else {
 			b.WriteString("\n")
 		}
