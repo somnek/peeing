@@ -69,13 +69,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// display Rtts
 			m.log = fmt.Sprintf("🐐%v", rtt)
 			m.rttList = append(m.rttList, rtt)
-			rc := record{timestamp: msg.end, rtt: rtt}
-			m.history = append(m.history, rc)
+			r := record{timestamp: msg.end, rtt: rtt, url: url}
+			m.history = append(m.history, r)
 		} else {
 			m.log = "🐇 Failed, retrying..."
 			m.rttList = append(m.rttList, FailedRttVal)
-			rc := record{timestamp: msg.end, rtt: FailedRttVal}
-			m.history = append(m.history, rc)
+			r := record{timestamp: msg.end, rtt: FailedRttVal, url: url}
+			m.history = append(m.history, r)
 		}
 
 		// should wait at least 1 second before ping again
@@ -85,7 +85,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.log += "  🌀 pinging..."
 		return m, ping(url)
 
-	// handle shortcut keys (not character input)
+	// handle shortcut keys (non-char input)
 	case tea.KeyMsg:
 		switch msg.String() {
 
@@ -108,6 +108,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 
+		case "ctrl+s":
+			if err := save(m.history); err != nil {
+				m.err = err
+				return m, nil
+			}
+			fmt.Printf("Results saved to %s, quitting...\n", OUTPUT_FILE)
+			return m, tea.Quit
+
 		case "q":
 			// allowing 'q' to be used as input
 			if !m.inputs[0].Focused() {
@@ -119,7 +127,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inputs[0].Reset()
 			m.inputs[0].Focus()
 			m.isSubmitted, m.isPinging = false, false
-			m.rttList, m.history = nil, nil
+			m.rttList, m.history = nil, make([]record, HistoryHeight)
 			m.log = ""
 			m.help = "esc: quit • enter: submit"
 			return m, nil

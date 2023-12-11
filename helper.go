@@ -1,11 +1,18 @@
 package main
 
 import (
+	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	probing "github.com/prometheus-community/pro-bing"
+)
+
+const (
+	OUTPUT_FILE = "output.log"
 )
 
 func insertHistory(history []string, t time.Time, rtt time.Duration) []string {
@@ -98,4 +105,33 @@ func convertToBlockUnit(dur time.Duration) rune {
 
 	// if the duration is greater than 400ms, we return the last block symbol
 	return BARS[7]
+}
+
+func save(history []record) error {
+	// format content
+	var content string
+	for _, rec := range history {
+		if rec == (record{}) {
+			// trim the place holder
+			continue
+		}
+		url := rec.url
+		timestamp := rec.timestamp.Format(time.RFC3339)
+		rtt := rec.rtt.String()
+		content += fmt.Sprintf("%s: [%s]  %s\n", timestamp, url, rtt)
+	}
+
+	// to file
+	f, err := os.Create(OUTPUT_FILE)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(f, content)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return nil
 }
