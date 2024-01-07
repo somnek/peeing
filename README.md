@@ -1,9 +1,7 @@
 # peeing
-ping with graph
+Smol `ping` tui with graph 📊.
 
 ## What it looks like ✨
 <p align="center">
-
-  ![demo](./assets/demo.gif)
-  
+  <img src="./assets/demo.gif") width="300"/>
 </p>
