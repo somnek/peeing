@@ -67,7 +67,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if isPacketRecv(stats) {
 			rtt := stats.Rtts[0]
 			// display Rtts
-			m.log = fmt.Sprintf("🐐%v", rtt)
+			m.log = fmt.Sprintf("🐐 %v", rtt)
 			m.rttList = append(m.rttList, rtt)
 			r := record{timestamp: msg.end, rtt: rtt, url: url}
 			m.history = append(m.history, r)
@@ -82,7 +82,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		spareTime := PingInterval - dur
 		time.Sleep(spareTime)
 
-		m.log += "  🌀 pinging..."
+		m.log += " 🌀 pinging..."
 		return m, ping(url)
 
 	// handle shortcut keys (non-char input)
